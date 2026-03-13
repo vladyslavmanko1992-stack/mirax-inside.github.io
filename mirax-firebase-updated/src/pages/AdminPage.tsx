@@ -18,6 +18,8 @@ export const AdminPage: React.FC = () => {
   const [editStatsId, setEditStatsId] = useState<string | null>(null);
   const [newViews, setNewViews] = useState(0);
   const [newDownloads, setNewDownloads] = useState(0);
+  const [newLikes, setNewLikes] = useState(0);
+  const [newDislikes, setNewDislikes] = useState(0);
   
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [newSubs, setNewSubs] = useState(0);
@@ -70,9 +72,46 @@ export const AdminPage: React.FC = () => {
 
   const handleUpdateStats = async () => {
     if (!editStatsId) return;
-    await projectService.update(editStatsId, { views: newViews, downloads: newDownloads });
+    const p = projects.find(p => p.id === editStatsId);
+    if (!p) return;
+
+    // Build likes array to match desired count
+    const currentLikes = (p.likes || []);
+    let updatedLikes = [...currentLikes];
+    if (newLikes > currentLikes.length) {
+      for (let i = 0; i < newLikes - currentLikes.length; i++) {
+        updatedLikes.push('admin-like-' + Math.random().toString(36).substr(2, 9));
+      }
+    } else if (newLikes < currentLikes.length) {
+      updatedLikes = updatedLikes.slice(0, newLikes);
+    }
+
+    // Build dislikes array to match desired count
+    const currentDislikes = (p.dislikes || []);
+    let updatedDislikes = [...currentDislikes];
+    if (newDislikes > currentDislikes.length) {
+      for (let i = 0; i < newDislikes - currentDislikes.length; i++) {
+        updatedDislikes.push('admin-dislike-' + Math.random().toString(36).substr(2, 9));
+      }
+    } else if (newDislikes < currentDislikes.length) {
+      updatedDislikes = updatedDislikes.slice(0, newDislikes);
+    }
+
+    await projectService.update(editStatsId, {
+      views: newViews,
+      downloads: newDownloads,
+      likes: updatedLikes,
+      dislikes: updatedDislikes,
+    });
     setEditStatsId(null);
     await loadData();
+  };
+
+  const handleSendToModeration = async (id: string) => {
+    if (confirm('Send this project back to moderation? Its status will become "pending".')) {
+      await projectService.update(id, { status: 'pending', rejectionReason: '' });
+      await loadData();
+    }
   };
 
   const handleUpdateUser = async () => {
@@ -236,7 +275,7 @@ export const AdminPage: React.FC = () => {
               
               <div className="flex gap-4 items-center">
                 <div className="text-gray-400 font-vt323 text-sm">
-                  Views: {p.views || 0} | DLs: {p.downloads || 0}
+                  Views: {p.views || 0} | DLs: {p.downloads || 0} | Likes: {(p.likes || []).length} | Dislikes: {(p.dislikes || []).length}
                 </div>
                 
                 <Button 
@@ -245,10 +284,21 @@ export const AdminPage: React.FC = () => {
                     setEditStatsId(p.id); 
                     setNewViews(p.views || 0); 
                     setNewDownloads(p.downloads || 0); 
+                    setNewLikes((p.likes || []).length);
+                    setNewDislikes((p.dislikes || []).length);
                   }}
                 >
                   Edit Stats
                 </Button>
+                {p.status !== 'pending' && (
+                  <Button 
+                    size="sm" 
+                    variant="primary" 
+                    onClick={() => handleSendToModeration(p.id)}
+                  >
+                    To Moderation
+                  </Button>
+                )}
                 <Button 
                   size="sm" 
                   variant={p.isRecommended ? 'danger' : 'success'} 
@@ -279,6 +329,18 @@ export const AdminPage: React.FC = () => {
                     type="number" 
                     value={newDownloads} 
                     onChange={e => setNewDownloads(Number(e.target.value))} 
+                  />
+                  <Input 
+                    label="Likes" 
+                    type="number" 
+                    value={newLikes} 
+                    onChange={e => setNewLikes(Math.max(0, Number(e.target.value)))} 
+                  />
+                  <Input 
+                    label="Dislikes" 
+                    type="number" 
+                    value={newDislikes} 
+                    onChange={e => setNewDislikes(Math.max(0, Number(e.target.value)))} 
                   />
                   <div className="flex gap-2 mt-4">
                     <Button onClick={handleUpdateStats}>Save</Button>
