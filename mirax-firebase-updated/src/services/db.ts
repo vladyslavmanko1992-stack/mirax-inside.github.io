@@ -327,15 +327,21 @@ export const projectService = {
     userId: string,
     type: 'like' | 'dislike'
   ): Promise<void> => {
+    // Require a real user ID (not a client IP placeholder)
+    if (!userId || userId.length === 0) return;
     const snap = await get(ref(db, `projects/${projectId}`));
     if (!snap.exists()) return;
     const project: Project = snap.val();
 
-    const likes = (project.likes || []).filter((id) => id !== userId);
-    const dislikes = (project.dislikes || []).filter((id) => id !== userId);
+    let likes = (project.likes || []).filter((id) => id !== userId);
+    let dislikes = (project.dislikes || []).filter((id) => id !== userId);
 
-    if (type === 'like') likes.push(userId);
-    else dislikes.push(userId);
+    // Toggle: if user already voted the same type, just remove (un-vote)
+    const hadLike = (project.likes || []).includes(userId);
+    const hadDislike = (project.dislikes || []).includes(userId);
+
+    if (type === 'like' && !hadLike) likes.push(userId);
+    else if (type === 'dislike' && !hadDislike) dislikes.push(userId);
 
     await update(ref(db, `projects/${projectId}`), { likes, dislikes });
   },

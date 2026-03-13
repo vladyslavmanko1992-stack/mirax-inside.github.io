@@ -40,8 +40,8 @@ export const ProjectPage: React.FC = () => {
   }, [id]);
 
   const handleVote = async (type: 'like' | 'dislike') => {
-    if (!project || !id) return;
-    await projectService.vote(id, clientIp, type);
+    if (!project || !id || !user) return; // Require login to vote
+    await projectService.vote(id, user.id, type);
     // State updates automatically via real-time listener
   };
 
@@ -225,16 +225,20 @@ export const ProjectPage: React.FC = () => {
           </div>
           <div className="flex items-center gap-4">
             <Button
-              variant={(project.likes || []).includes(clientIp) ? 'success' : 'secondary'}
+              variant={user && (project.likes || []).includes(user.id) ? 'success' : 'secondary'}
               onClick={() => handleVote('like')}
               className="gap-2"
+              disabled={!user}
+              title={!user ? 'Login to vote' : ''}
             >
               <ThumbsUp size={18} /> {(project.likes || []).length}
             </Button>
             <Button
-              variant={(project.dislikes || []).includes(clientIp) ? 'danger' : 'secondary'}
+              variant={user && (project.dislikes || []).includes(user.id) ? 'danger' : 'secondary'}
               onClick={() => handleVote('dislike')}
               className="gap-2"
+              disabled={!user}
+              title={!user ? 'Login to vote' : ''}
             >
               <ThumbsDown size={18} /> {(project.dislikes || []).length}
             </Button>
